@@ -40,6 +40,10 @@ class CopilotChatHistoryProvider implements vscode.TreeDataProvider<ChatSession 
         this._onDidChangeTreeData.fire();
     }
 
+    getSearchFilter(): string {
+        return this._searchFilter;
+    }
+
     setSearchFilter(filter: string): void {
         this._searchFilter = filter.toLowerCase();
         this.refresh();
@@ -476,7 +480,7 @@ export function activate(context: vscode.ExtensionContext) {
     const chatHistoryProvider = new CopilotChatHistoryProvider();
     
     // Регистрируем tree view
-    vscode.window.createTreeView('copilotChatHistoryView', {
+    const treeView = vscode.window.createTreeView('copilotChatHistoryView', {
         treeDataProvider: chatHistoryProvider,
         showCollapseAll: true
     });
@@ -516,22 +520,22 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     const searchCommand = vscode.commands.registerCommand('copilotChatHistory.search', async () => {
+        const current = chatHistoryProvider.getSearchFilter();
         const searchText = await vscode.window.showInputBox({
             placeHolder: 'Enter search text...',
-            prompt: 'Search chat sessions by title'
+            prompt: 'Search chat sessions by title',
+            value: current
         });
         
         if (searchText !== undefined) {
             chatHistoryProvider.setSearchFilter(searchText);
-            if (searchText.trim()) {
-                vscode.window.showInformationMessage(`Filtered by: "${searchText}"`);
-            }
+            treeView.message = searchText.trim() ? `Filter: ${searchText.trim()}` : undefined;
         }
     });
 
     const clearFilterCommand = vscode.commands.registerCommand('copilotChatHistory.clearFilter', () => {
         chatHistoryProvider.clearFilter();
-        vscode.window.showInformationMessage('Filter cleared');
+        treeView.message = undefined;
     });
 
     const openWorkspaceInCurrentWindowCommand = vscode.commands.registerCommand('copilotChatHistory.openWorkspaceInCurrentWindow', async (workspaceGroup: WorkspaceGroup) => {
