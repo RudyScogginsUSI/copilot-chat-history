@@ -7,7 +7,7 @@ import { buildChatMarkdown, sanitizeFileName } from './markdown/chatMarkdown';
 import { generateChatHTML } from './renderers/chatRenderer';
 import { getChatStyles } from './renderers/styles';
 import { showCentralizedError } from './utils/notifications';
-import { loadSessionData, resolveAccessibleSessionFilePath, SessionFileError } from './utils/sessionFiles';
+import { loadSessionData, parseJsonlSession, resolveAccessibleSessionFilePath, SessionFileError } from './utils/sessionFiles';
 
 interface WorkspaceGroup {
     workspaceName: string;
@@ -238,28 +238,28 @@ class CopilotChatHistoryProvider implements vscode.TreeDataProvider<ChatSession 
                     }
 
                     const sessionFiles = fs.readdirSync(chatSessionsPath)
-                        .filter(file => file.endsWith('.json'));
+                        .filter(file => file.endsWith('.json') || file.endsWith('.jsonl'));
 
                     for (const sessionFile of sessionFiles) {
                         const sessionPath = path.join(chatSessionsPath, sessionFile);
                         const stats = fs.statSync(sessionPath);
                         
                         try {
-                            const sessionData = JSON.parse(fs.readFileSync(sessionPath, 'utf8'));
+                            const raw = fs.readFileSync(sessionPath, 'utf8');
+                            const sessionData = sessionFile.endsWith('.jsonl')
+                                ? parseJsonlSession(raw)
+                                : JSON.parse(raw);
                             const messageCount = sessionData.requests ? sessionData.requests.length : 0;
                             
-                            // Пропускаем сессии без requests или с пустым массивом requests
                             if (!sessionData.requests || sessionData.requests.length === 0) {
                                 continue;
                             }
                             
                             let customTitle = sessionData.customTitle;
                             
-                            // Если нет customTitle, берем первое сообщение из requests
                             if (!customTitle && sessionData.requests && sessionData.requests.length > 0) {
                                 const firstRequest = sessionData.requests[0];
                                 if (firstRequest && firstRequest.message && firstRequest.message.text) {
-                                    // Обрезаем длинные сообщения и убираем переносы строк
                                     customTitle = firstRequest.message.text
                                         .replace(/\n/g, ' ')
                                         .trim()
@@ -271,7 +271,7 @@ class CopilotChatHistoryProvider implements vscode.TreeDataProvider<ChatSession 
                             }
                             
                             sessions.push({
-                                id: path.basename(sessionFile, '.json'),
+                                id: path.parse(sessionFile).name,
                                 customTitle,
                                 workspaceName,
                                 workspacePath,

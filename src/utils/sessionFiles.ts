@@ -2,6 +2,46 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { ChatSession, ChatSessionData } from '../types';
 
+function applyJsonlPatch(state: Record<string, unknown>, kind: number, keys: Array<string | number>, value: unknown): void {
+    if (keys.length === 0) {
+        return;
+    }
+    let current: Record<string, unknown> = state;
+    for (let i = 0; i < keys.length - 1; i++) {
+        const key = keys[i];
+        if (current[key] === undefined || current[key] === null || typeof current[key] !== 'object') {
+            current[key] = typeof keys[i + 1] === 'number' ? [] : {};
+        }
+        current = current[key] as Record<string, unknown>;
+    }
+    const lastKey = keys[keys.length - 1];
+    if (kind === 1) {
+        current[lastKey] = value;
+    } else if (kind === 2) {
+        const existing = Array.isArray(current[lastKey]) ? (current[lastKey] as unknown[]) : [];
+        current[lastKey] = [...existing, ...(Array.isArray(value) ? value : [value])];
+    }
+}
+
+export function parseJsonlSession(content: string): ChatSessionData {
+    const lines = content.split('\n').filter(line => line.trim().length > 0);
+    if (lines.length === 0) {
+        throw new Error('JSONL session file is empty');
+    }
+    const firstLine = JSON.parse(lines[0]) as { kind: number; v?: unknown };
+    if (firstLine.kind !== 0 || typeof firstLine.v !== 'object' || firstLine.v === null) {
+        throw new Error('JSONL session file does not begin with a valid initial state (kind:0)');
+    }
+    const state = firstLine.v as Record<string, unknown>;
+    for (let i = 1; i < lines.length; i++) {
+        const patch = JSON.parse(lines[i]) as { kind: number; k: Array<string | number>; v: unknown };
+        if (patch.kind === 1 || patch.kind === 2) {
+            applyJsonlPatch(state, patch.kind, patch.k, patch.v);
+        }
+    }
+    return state as unknown as ChatSessionData;
+}
+
 export class SessionFileError extends Error {
     readonly context: string;
     readonly cause?: unknown;
@@ -81,7 +121,9 @@ export async function loadSessionData(session: ChatSession): Promise<{ filePath:
     }
 
     try {
-        const sessionData = JSON.parse(sessionRaw) as ChatSessionData;
+        const sessionData = path.extname(sessionFilePath) === '.jsonl'
+            ? parseJsonlSession(sessionRaw)
+            : JSON.parse(sessionRaw) as ChatSessionData;
         return { filePath: sessionFilePath, data: sessionData };
     } catch (error) {
         throw new SessionFileError(

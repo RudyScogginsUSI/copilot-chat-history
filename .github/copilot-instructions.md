@@ -81,6 +81,16 @@ code-insiders --install-extension copilot-chat-history-<version>.vsix
 
 Or from within VS Code Insiders: Extensions view → `...` menu → **Install from VSIX...** → select the file.
 
+## Post-Change Deployment (Agentic)
+
+After completing any code changes, always perform these steps automatically without waiting to be asked:
+
+1. Bump the patch version in `package.json` (e.g. `1.2.4` → `1.2.5`)
+2. Run `npm run package:vsix` to type-check, lint, bundle, and produce the `.vsix`
+3. Run `code-insiders --install-extension copilot-chat-history-<version>.vsix` to install it
+
+The user can then reload the extension host (**Developer: Restart Extension Host**) to activate the new version.
+
 ## Platform Notes
 
 - The extension hard-codes the Windows path `Code - Insiders\User\workspaceStorage` (changed from the upstream `Code\User\workspaceStorage`).
