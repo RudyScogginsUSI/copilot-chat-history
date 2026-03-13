@@ -184,7 +184,7 @@ class CopilotChatHistoryProvider implements vscode.TreeDataProvider<ChatSession 
         const sessions: ChatSession[] = [];
         
         try {
-            const userDataPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Code', 'User', 'workspaceStorage');
+            const userDataPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Code - Insiders', 'User', 'workspaceStorage');
             
             if (!fs.existsSync(userDataPath)) {
                 return sessions;
@@ -310,7 +310,7 @@ class CopilotChatHistoryProvider implements vscode.TreeDataProvider<ChatSession 
     private async findWorkspaceInRecentList(workspaceName: string): Promise<string | undefined> {
         try {
             // Попробуем найти в recent workspaces VS Code
-            const userDataPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Code', 'User');
+            const userDataPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Code - Insiders', 'User');
             const recentWorkspacesPath = path.join(userDataPath, 'globalStorage', 'state.vscdb');
             
             // VS Code хранит recent workspaces в разных местах, попробуем основные
